@@ -1,0 +1,57 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    container_name: forms_api
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - API__TITLE=${API__TITLE}
+      - API__DESCRIPTION=${API__DESCRIPTION}
+      - API__VERSION=${API__VERSION}
+      - API__CONTACT_NAME=${API__CONTACT_NAME}
+      - API__CONTACT_EMAIL=${API__CONTACT_EMAIL}
+      - API__CONTACT_URL=${API__CONTACT_URL}
+      - DATABASE__POSTGRES_USER=${DATABASE__POSTGRES_USER}
+      - DATABASE__POSTGRES_PASSWORD=${DATABASE__POSTGRES_PASSWORD}
+      - DATABASE__POSTGRES_DB=${DATABASE__POSTGRES_DB}
+      - DATABASE__POSTGRES_HOST=${DATABASE__POSTGRES_HOST}
+      - DATABASE__POSTGRES_PORT=${DATABASE__POSTGRES_PORT}
+      - SECURITY__JWT_SECRET_KEY=${SECURITY__JWT_SECRET_KEY}
+      - SECURITY__JWT_ALGORITHM=${SECURITY__JWT_ALGORITHM}
+      - SECURITY__JWT_EXPIRE_MINUTES=${SECURITY__JWT_EXPIRE_MINUTES}
+      - CORS__ORIGINS=${CORS__ORIGINS}
+    networks:
+      - forms_network
+    command: bash -c "/app/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    container_name: forms_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${DATABASE__POSTGRES_USER}
+      - POSTGRES_PASSWORD=${DATABASE__POSTGRES_PASSWORD}
+      - POSTGRES_DB=${DATABASE__POSTGRES_DB}
+    volumes:
+      - forms_postgres_data:/var/lib/postgresql/data
+    networks:
+      - forms_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE__POSTGRES_USER} -d ${DATABASE__POSTGRES_DB}"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+
+networks:
+  forms_network:
+    driver: bridge
+
+volumes:
+  forms_postgres_data:
+  
