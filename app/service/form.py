@@ -1,3 +1,4 @@
+from typing import List
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,3 +74,11 @@ async def delete_form(db: AsyncSession, form_id: int, owner_id: int) -> None:
 
     await db.delete(form)
     await db.commit()
+
+async def get_user_forms(db: AsyncSession, owner_id: int) -> List[Form]:
+    result = await db.execute(
+        select(Form)
+        .where(Form.owner_id == owner_id)
+        .order_by(Form.id.desc())
+    )
+    return result.scalars().all()
