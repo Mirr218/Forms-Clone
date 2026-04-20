@@ -1,26 +1,20 @@
 from datetime import datetime
-from typing import Any, List
+from typing import Any, Dict
 
 from pydantic import BaseModel
-
-
-class AnswerSchema(BaseModel):
-    question_id: int
-    answer_value: Any
-
 
 class ResponseBase(BaseModel):
     form_id: int
 
 
 class ResponseCreate(ResponseBase):
-    answers: List[AnswerSchema]
+    answers: Dict[int, Any]
 
 
 class ResponseResponse(ResponseBase):
     id: int
     form_id: int
-    answers: List[AnswerSchema]
+    answers: Dict[int, Any]
     submitted_at: datetime
 
     class Config:
