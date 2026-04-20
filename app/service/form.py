@@ -5,6 +5,31 @@ from app.models.form import Form, Question
 from app.schemas.form import FormCreate
 from app.exceptions import FormNotFoundError, AccessDeniedError
 
+async def create_form(db: AsyncSession, form_data: FormCreate, owner_id: int) -> Form:
+    new_form = Form(
+        title=form_data.title,
+        description=form_data.description,
+        owner_id=owner_id
+    )
+    db.add(new_form)
+
+    await db.flush()
+
+    for q_data in form_data.questions:
+        question = Question(
+            form_id=new_form.id,
+            question_type=q_data.question_type,
+            text=q_data.text,
+            is_required=q_data.is_required,
+            options=q_data.options,
+            position=q_data.position
+        )
+        db.add(question)
+
+    await db.commit()
+    await db.refresh(new_form)
+    return new_form
+
 async def get_form_by_id(db: AsyncSession, form_id: int) -> Form:
     result = await db.execute(
         select(Form).where(Form.id == form_id).options(selectinload(Form.questions))
