@@ -8,13 +8,13 @@ class ResponseBase(BaseModel):
 
 
 class ResponseCreate(ResponseBase):
-    answers: Dict[int, Any]
+    answers: Dict[str, Any]
 
 
 class ResponseResponse(ResponseBase):
     id: int
     form_id: int
-    answers: Dict[int, Any]
+    answers: Dict[str, Any]
     submitted_at: datetime
 
     class Config:

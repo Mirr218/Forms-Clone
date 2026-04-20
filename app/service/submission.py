@@ -5,12 +5,33 @@ from app.models.form import Form, Question
 from app.models.response import Response
 from app.exceptions import FormNotFoundError, InvalidAnswersError, AccessDeniedError
 
-def validate_answers(questions: List[Question], answers: Dict[int, Any]) -> None:
-    question_map = {q.id: q for q in questions}
+def normalize_answer_keys(answers: Dict[str, Any]) -> Dict[str, Any]:
+    normalized: Dict[str, Any] = {}
+    errors: List[str] = []
+
+    for raw_key, value in answers.items():
+        if not isinstance(raw_key, str):
+            errors.append(f"Question key '{raw_key}' has invalid type")
+            continue
+        key = raw_key.strip()
+        if not key:
+            errors.append("Question key cannot be empty")
+            continue
+
+        normalized[key] = value
+
+    if errors:
+        raise InvalidAnswersError(errors)
+
+    return normalized
+
+
+def validate_answers(questions: List[Question], answers: Dict[str, Any]) -> None:
+    question_map = {str(q.id): q for q in questions}
     errors: List[str] = []
 
     for q in questions:
-        if q.is_required and q.id not in answers:
+        if q.is_required and str(q.id) not in answers:
             errors.append(f"Question '{q.text}' is required")
 
     for q_id, value in answers.items():
@@ -43,7 +64,7 @@ def validate_answers(questions: List[Question], answers: Dict[int, Any]) -> None
     if errors:
         raise InvalidAnswersError(errors)
 
-async def submit_response(db: AsyncSession, form_id: int, answers: Dict[int, Any]) -> Response:
+async def submit_response(db: AsyncSession, form_id: int, answers: Dict[str, Any]) -> Response:
     result = await db.execute(select(Form).where(Form.id == form_id))
     form = result.scalar_one_or_none()
     
@@ -53,9 +74,10 @@ async def submit_response(db: AsyncSession, form_id: int, answers: Dict[int, Any
     q_result = await db.execute(select(Question).where(Question.form_id == form_id))
     questions = q_result.scalars().all()
 
-    validate_answers(questions, answers)
+    normalized_answers = normalize_answer_keys(answers)
+    validate_answers(questions, normalized_answers)
 
-    new_response = Response(form_id=form_id, answers=answers)
+    new_response = Response(form_id=form_id, answers=normalized_answers)
     db.add(new_response)
     await db.commit()
     await db.refresh(new_response)
