@@ -3,6 +3,7 @@ from typing import Any, Dict
 
 from pydantic import BaseModel
 
+
 class ResponseBase(BaseModel):
     form_id: int
 

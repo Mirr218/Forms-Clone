@@ -1,9 +1,12 @@
-from typing import List, Dict, Any
+from typing import Any, Dict, List, Sequence
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.exceptions import AccessDeniedError, FormNotFoundError, InvalidAnswersError
 from app.models.form import Form, Question
 from app.models.response import Response
-from app.exceptions import FormNotFoundError, InvalidAnswersError, AccessDeniedError
+
 
 def normalize_answer_keys(answers: Dict[str, Any]) -> Dict[str, Any]:
     normalized: Dict[str, Any] = {}
@@ -26,7 +29,7 @@ def normalize_answer_keys(answers: Dict[str, Any]) -> Dict[str, Any]:
     return normalized
 
 
-def validate_answers(questions: List[Question], answers: Dict[str, Any]) -> None:
+def validate_answers(questions: Sequence[Question], answers: Dict[str, Any]) -> None:
     question_map = {str(q.id): q for q in questions}
     errors: List[str] = []
 
@@ -35,39 +38,44 @@ def validate_answers(questions: List[Question], answers: Dict[str, Any]) -> None
             errors.append(f"Question '{q.text}' is required")
 
     for q_id, value in answers.items():
-        q = question_map.get(q_id)
-        if not q:
+        question = question_map.get(q_id)
+        if not question:
             errors.append(f"Question #{q_id} not found")
             continue
 
         if value is None:
-            if q.is_required:
-                errors.append(f"Question '{q.text}' is required")
+            if question.is_required:
+                errors.append(f"Question '{question.text}' is required")
             continue
 
-        if q.question_type == "text":
+        if question.question_type == "text":
             if not isinstance(value, str):
-                errors.append(f"Invalid answer type for '{q.text}'")
-            elif q.is_required and not value.strip():
-                errors.append(f"Question '{q.text}' is required")
-        elif q.question_type == "radio":
-            if not isinstance(value, str) or value not in (q.options or []):
-                errors.append(f"Invalid option for '{q.text}'")
-        elif q.question_type == "checkbox":
-            if not isinstance(value, list) or not all(opt in (q.options or []) for opt in value):
-                errors.append(f"Invalid options for '{q.text}'")
-            elif q.is_required and len(value) == 0:
-                errors.append(f"Question '{q.text}' is required")
+                errors.append(f"Invalid answer type for '{question.text}'")
+            elif question.is_required and not value.strip():
+                errors.append(f"Question '{question.text}' is required")
+        elif question.question_type == "radio":
+            if not isinstance(value, str) or value not in (question.options or []):
+                errors.append(f"Invalid option for '{question.text}'")
+        elif question.question_type == "checkbox":
+            if not isinstance(value, list) or not all(
+                opt in (question.options or []) for opt in value
+            ):
+                errors.append(f"Invalid options for '{question.text}'")
+            elif question.is_required and len(value) == 0:
+                errors.append(f"Question '{question.text}' is required")
         else:
-            errors.append(f"Unsupported question type for '{q.text}'")
+            errors.append(f"Unsupported question type for '{question.text}'")
 
     if errors:
         raise InvalidAnswersError(errors)
 
-async def submit_response(db: AsyncSession, form_id: int, answers: Dict[str, Any]) -> Response:
+
+async def submit_response(
+    db: AsyncSession, form_id: int, answers: Dict[str, Any]
+) -> Response:
     result = await db.execute(select(Form).where(Form.id == form_id))
     form = result.scalar_one_or_none()
-    
+
     if not form:
         raise FormNotFoundError("Form not found")
 
@@ -83,12 +91,17 @@ async def submit_response(db: AsyncSession, form_id: int, answers: Dict[str, Any
     await db.refresh(new_response)
     return new_response
 
-async def get_form_responses(db: AsyncSession, form_id: int, owner_id: int) -> List[Response]:
+
+async def get_form_responses(
+    db: AsyncSession, form_id: int, owner_id: int
+) -> List[Response]:
     form = await db.get(Form, form_id)
     if not form or form.owner_id != owner_id:
         raise AccessDeniedError("Not enough permissions")
 
     result = await db.execute(
-        select(Response).where(Response.form_id == form_id).order_by(Response.submitted_at.desc())
+        select(Response)
+        .where(Response.form_id == form_id)
+        .order_by(Response.submitted_at.desc())
     )
-    return result.scalars().all()
+    return list(result.scalars().all())

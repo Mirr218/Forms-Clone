@@ -1,8 +1,10 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel
 
 from .user import UserResponse
+
+QuestionType = Literal["text", "radio", "checkbox"]
 
 
 class QuestionBase(BaseModel):

@@ -17,7 +17,6 @@ AsyncSessionFactory = async_sessionmaker(
 Base = declarative_base()
 
 
-
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionFactory() as session:
         try:
@@ -26,7 +25,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-# Функция для создания всех таблиц при запуске приложения
 async def create_tables():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
