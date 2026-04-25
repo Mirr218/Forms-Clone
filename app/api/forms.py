@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,10 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_current_user_id
 from app.db import get_db
 from app.exceptions import AccessDeniedError, FormNotFoundError
-from app.schemas.form import FormCreate, FormResponse
+from app.schemas.form import FormCreate, FormResponse, FormUpdate
 from app.service import (
     create_form,
     delete_form,
+    get_all_forms_filtered_by_title,
+    get_all_forms_sorted,
     get_form_by_id,
     get_user_forms,
     update_form,
@@ -24,7 +26,9 @@ async def create_new_form(
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
 ) -> FormResponse:
-    return await create_form(db, form_in, user_id)
+    created = await create_form(db, form_in, user_id)
+    loaded = await get_form_by_id(db, created.id)
+    return FormResponse.model_validate(loaded)
 
 
 @router.get("/", response_model=List[FormResponse])
@@ -36,12 +40,34 @@ async def list_my_forms(
     return [FormResponse.model_validate(form) for form in forms]
 
 
+@router.get("/sorted", response_model=List[FormResponse])
+async def list_sorted_forms(
+    sort_by: Literal["title", "created_at"] = "created_at",
+    order: Literal["asc", "desc"] = "desc",
+    db: AsyncSession = Depends(get_db),
+) -> List[FormResponse]:
+    """Возвращает все формы, отсортированные по указанному полю и направлению."""
+    forms = await get_all_forms_sorted(db, sort_by, order)
+    return [FormResponse.model_validate(form) for form in forms]
+
+
+@router.get("/search", response_model=List[FormResponse])
+async def search_forms_by_title(
+    title_contains: str,
+    db: AsyncSession = Depends(get_db),
+) -> List[FormResponse]:
+    """Поиск форм по подстроке в названии (игнорирует регистр)."""
+    forms = await get_all_forms_filtered_by_title(db, title_contains)
+    return [FormResponse.model_validate(form) for form in forms]
+
+
 @router.get("/{form_id}", response_model=FormResponse)
 async def get_one_form(
     form_id: int, db: AsyncSession = Depends(get_db)
 ) -> FormResponse:
     try:
-        return await get_form_by_id(db, form_id)
+        form = await get_form_by_id(db, form_id)
+        return FormResponse.model_validate(form)
     except FormNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
@@ -51,12 +77,14 @@ async def get_one_form(
 @router.put("/{form_id}", response_model=FormResponse)
 async def update_one_form(
     form_id: int,
-    form_in: FormCreate,
+    form_in: FormUpdate,
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
 ) -> FormResponse:
     try:
-        return await update_form(db, form_id, user_id, form_in)
+        await update_form(db, form_id, user_id, form_in)
+        updated = await get_form_by_id(db, form_id)
+        return FormResponse.model_validate(updated)
     except FormNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)

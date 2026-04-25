@@ -8,7 +8,7 @@ from .form import (
     QuestionResponse,
     QuestionUpdate,
 )
-from .response import ResponseBase, ResponseCreate, ResponseResponse
+from .response import ResponseBase, ResponseCreate, ResponseResponse, ResponseSubmit
 from .token import Token, TokenData
 from .user import UserBase, UserCreate, UserInfo, UserResponse, UserUpdate
 
@@ -31,6 +31,7 @@ __all__ = [
     # Response schemas
     "ResponseBase",
     "ResponseCreate",
+    "ResponseSubmit",
     "ResponseResponse",
     # Token schemas
     "Token",

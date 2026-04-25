@@ -33,7 +33,6 @@ def create_access_token(subject: Union[str, Any]) -> str:
     # Создаем данные для JWT
     to_encode = {"exp": expire, "sub": str(subject)}
 
-    # Кодируем JWT
     encoded_jwt = jwt.encode(
         to_encode,
         security_config.jwt_secret_key,

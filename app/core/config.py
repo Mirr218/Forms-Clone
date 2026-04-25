@@ -52,7 +52,6 @@ class Settings(BaseSettings):
 # mypy: disable-error-code="call-arg"
 settings = Settings()
 
-# Группировка настроек для удобного доступа
 api_config = settings.api
 database_config = settings.database
 security_config = settings.security

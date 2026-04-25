@@ -12,6 +12,10 @@ class ResponseCreate(ResponseBase):
     answers: Dict[str, Any]
 
 
+class ResponseSubmit(BaseModel):
+    answers: Dict[str, Any]
+
+
 class ResponseResponse(ResponseBase):
     id: int
     form_id: int

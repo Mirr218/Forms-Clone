@@ -21,6 +21,10 @@ def normalize_answer_keys(answers: Dict[str, Any]) -> Dict[str, Any]:
             errors.append("Question key cannot be empty")
             continue
 
+        if key in normalized:
+            errors.append(f"Duplicate question key after normalization: '{key}'")
+            continue
+
         normalized[key] = value
 
     if errors:
